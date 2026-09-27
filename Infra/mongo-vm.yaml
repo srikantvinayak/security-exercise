@@ -9,7 +9,7 @@ Parameters:
   MongoSecurityGroupId:
     Type: AWS::EC2::SecurityGroup::Id
   KeyName:
-    Type: AWS::EC2::KeyPair::KeyName
+    Type: AWS::EC2::KeyPair::KeyName 
     Description: Existing EC2 key pair for SSH access
   AmiId:
     Type: AWS::EC2::Image::Id
