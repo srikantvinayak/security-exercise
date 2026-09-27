@@ -1,0 +1,129 @@
+name: Deploy Infrastructure (CloudFormation)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/**'
+
+permissions:
+  id-token: write   # required for OIDC -> AWS auth
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  TEMPLATE_BUCKET: <your-template-hosting-bucket>
+
+jobs:
+
+  lint-and-scan:
+    name: Lint + security scan IaC
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cfn-lint
+        run: pip install cfn-lint
+
+      - name: Run cfn-lint
+        run: cfn-lint infra/*.yaml
+
+      - name: Run cfn_nag (security scan)
+        uses: stelligent/cfn_nag@master
+        with:
+          input_path: infra
+
+      - name: Run Checkov (IaC scan)
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infra
+          framework: cloudformation
+
+  plan:
+    name: Create change set (plan)
+    needs: lint-and-scan
+    runs-on: ubuntu-latest
+    outputs:
+      changeset-name: ${{ steps.changeset.outputs.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload nested templates and scripts to S3
+        run: |
+          aws s3 cp infra/network.yaml s3://${{ env.TEMPLATE_BUCKET }}/
+          aws s3 cp infra/mongo-vm.yaml s3://${{ env.TEMPLATE_BUCKET }}/
+          aws s3 cp infra/s3-backup.yaml s3://${{ env.TEMPLATE_BUCKET }}/
+          aws s3 cp infra/eks-cluster.yaml s3://${{ env.TEMPLATE_BUCKET }}/
+          aws s3 cp infra/ecr.yaml s3://${{ env.TEMPLATE_BUCKET }}/
+          aws s3 cp infra/security.yaml s3://${{ env.TEMPLATE_BUCKET }}/
+          aws s3 cp infra/scripts/mongo-setup.sh s3://${{ env.TEMPLATE_BUCKET }}/scripts/mongo-setup.sh
+
+      - name: Create change set
+        id: changeset
+        run: |
+          CHANGESET_NAME="cs-${{ github.sha }}"
+          aws cloudformation deploy \
+            --template-file infra/root-stack.yaml \
+            --stack-name security-exercise \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-execute-changeset \
+            --change-set-name "$CHANGESET_NAME" \
+            --parameter-overrides \
+              TemplateBucketName=${{ env.TEMPLATE_BUCKET }} \
+              KeyName=${{ secrets.EC2_KEY_NAME }} \
+              MongoAmiId=${{ secrets.MONGO_AMI_ID }} \
+              BackupBucketName=${{ secrets.BACKUP_BUCKET_NAME }} \
+              TrailBucketName=${{ secrets.TRAIL_BUCKET_NAME }} \
+              ConfigBucketName=${{ secrets.CONFIG_BUCKET_NAME }} \
+              MongoAdminPassword=${{ secrets.MONGO_ADMIN_PASSWORD }} \
+              MongoAppPassword=${{ secrets.MONGO_APP_PASSWORD }}
+          echo "name=$CHANGESET_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Show change set (human-readable diff)
+        run: |
+          aws cloudformation describe-change-set \
+            --stack-name security-exercise \
+            --change-set-name "${{ steps.changeset.outputs.name }}" \
+            --query 'Changes[].ResourceChange.{Action:Action,Resource:LogicalResourceId,Type:ResourceType}' \
+            --output table
+
+  deploy:
+    name: Execute change set (requires manual approval)
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: production   # <- pauses here for the required reviewer
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Execute change set
+        run: |
+          aws cloudformation execute-change-set \
+            --stack-name security-exercise \
+            --change-set-name "${{ needs.plan.outputs.changeset-name }}"
+
+      - name: Wait for stack update to complete
+        run: |
+          aws cloudformation wait stack-update-complete \
+            --stack-name security-exercise || \
+          aws cloudformation wait stack-create-complete \
+            --stack-name security-exercise
+
+      - name: Show final stack outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name security-exercise \
+            --query 'Stacks[0].Outputs' --output table
