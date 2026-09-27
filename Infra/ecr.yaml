@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Phase 4 - ECR repository for the todo app image, with scan-on-push
+  enabled (basic AWS-native image scanning, in addition to Trivy in the pipeline).
+
+Parameters:
+  RepositoryName:
+    Type: String
+    Default: todo-app
+
+Resources:
+
+  TodoAppRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref RepositoryName
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      ImageTagMutability: IMMUTABLE
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep only the last 10 images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+
+Outputs:
+  RepositoryUri:
+    Value: !GetAtt TodoAppRepository.RepositoryUri
+  RepositoryName:
+    Value: !Ref TodoAppRepository

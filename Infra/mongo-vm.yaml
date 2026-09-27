@@ -1,0 +1,132 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Phase 2 - MongoDB VM: outdated Linux AMI, outdated MongoDB version,
+  overly permissive IAM role (intentional), daily backup cron to S3.
+
+Parameters:
+  PublicSubnetId:
+    Type: AWS::EC2::Subnet::Id
+  MongoSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Existing EC2 key pair for SSH access
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Description: >
+      Must be a 1+ year outdated AMI ID (verify CreationDate via
+      `aws ec2 describe-images` before passing this in - see runbook Phase 2.1)
+  InstanceType:
+    Type: String
+    Default: t3.micro
+  BackupBucketName:
+    Type: String
+    Description: Name of the S3 bucket created by s3-backup.yaml
+  MongoAdminPassword:
+    Type: String
+    NoEcho: true
+    Description: Password for the MongoDB admin user (never commit a real value - pass at deploy time)
+  MongoAppPassword:
+    Type: String
+    NoEcho: true
+    Description: Password for the MongoDB app user (never commit a real value - pass at deploy time)
+
+Resources:
+
+  # INTENTIONAL MISCONFIG: overly permissive role (Phase 2.4)
+  MongoVMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: mongo-vm-overly-permissive-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+      Policies:
+        - PolicyName: backup-bucket-write
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                Resource: !Sub arn:aws:s3:::${BackupBucketName}/*
+
+  MongoVMInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref MongoVMRole
+
+  MongoVMInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PublicSubnetId
+      SecurityGroupIds:
+        - !Ref MongoSecurityGroupId
+      IamInstanceProfile: !Ref MongoVMInstanceProfile
+      Tags:
+        - Key: Name
+          Value: mongo-vm
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -e
+
+          # Pin an outdated MongoDB version (Phase 2.5) - example uses 4.4 series
+          cat <<EOF > /etc/apt/sources.list.d/mongodb-org-4.4.list
+          deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse
+          EOF
+          wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | apt-key add -
+          apt-get update -y
+          apt-get install -y mongodb-org=4.4.29 mongodb-org-server=4.4.29 mongodb-org-shell=4.4.29 \
+            mongodb-org-mongos=4.4.29 mongodb-org-tools=4.4.29 awscli
+
+          PRIVATE_IP=$(hostname -I | awk '{print $1}')
+
+          # Bind to private IP only, not 0.0.0.0 (Phase 2.7)
+          sed -i "s/bindIp: 127.0.0.1/bindIp: 127.0.0.1,${!PRIVATE_IP}/" /etc/mongod.conf
+          systemctl restart mongod
+          sleep 5
+
+          # Create admin + app user, then enable auth (Phase 2.6)
+          mongo <<EOF
+          use admin
+          db.createUser({user:"admin", pwd:"${MongoAdminPassword}", roles:[{role:"root", db:"admin"}]})
+          use tododb
+          db.createUser({user:"appuser", pwd:"${MongoAppPassword}", roles:[{role:"readWrite", db:"tododb"}]})
+          EOF
+
+          echo "security:
+            authorization: enabled" >> /etc/mongod.conf
+          systemctl restart mongod
+
+          # Daily backup script (Phase 2.8)
+          cat <<'BACKUP' > /usr/local/bin/mongo-backup.sh
+          #!/bin/bash
+          DATE=$(date +%F)
+          mongodump -u admin -p "${MongoAdminPassword}" --authenticationDatabase admin --out /tmp/backup-$DATE
+          aws s3 cp /tmp/backup-$DATE s3://${BackupBucketName}/backup-$DATE --recursive
+          rm -rf /tmp/backup-$DATE
+          BACKUP
+          chmod +x /usr/local/bin/mongo-backup.sh
+
+          # Daily cron at 02:00
+          echo "0 2 * * * root /usr/local/bin/mongo-backup.sh >> /var/log/mongo-backup.log 2>&1" > /etc/cron.d/mongo-backup
+
+Outputs:
+  InstanceId:
+    Value: !Ref MongoVMInstance
+  PublicIp:
+    Value: !GetAtt MongoVMInstance.PublicIp
+  PrivateIp:
+    Value: !GetAtt MongoVMInstance.PrivateIp

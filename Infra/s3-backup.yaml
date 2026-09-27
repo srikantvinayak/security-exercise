@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Phase 3 - S3 backup bucket with public read + list access (intentional misconfig).
+
+Parameters:
+  BucketName:
+    Type: String
+    Description: Globally unique bucket name for MongoDB backups
+
+Resources:
+
+  BackupBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      # INTENTIONAL MISCONFIG: Block Public Access fully disabled (Phase 3.2)
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        IgnorePublicAcls: false
+        BlockPublicPolicy: false
+        RestrictPublicBuckets: false
+      Tags:
+        - Key: Name
+          Value: mongo-backup-bucket
+        - Key: Purpose
+          Value: "INTENTIONAL-MISCONFIG-public-read-list"
+
+  BackupBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref BackupBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub arn:aws:s3:::${BackupBucket}/*
+          - Sid: PublicListBucket
+            Effect: Allow
+            Principal: "*"
+            Action: s3:ListBucket
+            Resource: !Sub arn:aws:s3:::${BackupBucket}
+
+Outputs:
+  BucketName:
+    Value: !Ref BackupBucket
+  BucketArn:
+    Value: !GetAtt BackupBucket.Arn
+  BucketUrl:
+    Value: !Sub https://${BackupBucket}.s3.amazonaws.com/

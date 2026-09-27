@@ -1,0 +1,101 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Root stack - deploys network, mongo-vm, s3-backup, eks-cluster, and security
+  as nested stacks, wiring outputs from one into parameters of the next.
+  All child templates must first be uploaded to TemplateBucketName (see below).
+
+Parameters:
+  TemplateBucketName:
+    Type: String
+    Description: >
+      S3 bucket that hosts network.yaml, mongo-vm.yaml, s3-backup.yaml,
+      eks-cluster.yaml, and security.yaml (upload these before deploying this stack)
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+  MongoAmiId:
+    Type: AWS::EC2::Image::Id
+  BackupBucketName:
+    Type: String
+  TrailBucketName:
+    Type: String
+  ConfigBucketName:
+    Type: String
+  MongoAdminPassword:
+    Type: String
+    NoEcho: true
+  MongoAppPassword:
+    Type: String
+    NoEcho: true
+
+Resources:
+
+  NetworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${TemplateBucketName}.s3.amazonaws.com/network.yaml
+      TimeoutInMinutes: 15
+
+  S3BackupStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${TemplateBucketName}.s3.amazonaws.com/s3-backup.yaml
+      Parameters:
+        BucketName: !Ref BackupBucketName
+      TimeoutInMinutes: 10
+
+  MongoVMStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${TemplateBucketName}.s3.amazonaws.com/mongo-vm.yaml
+      Parameters:
+        PublicSubnetId: !GetAtt NetworkStack.Outputs.PublicSubnet1Id
+        MongoSecurityGroupId: !GetAtt NetworkStack.Outputs.MongoSecurityGroupId
+        KeyName: !Ref KeyName
+        AmiId: !Ref MongoAmiId
+        BackupBucketName: !GetAtt S3BackupStack.Outputs.BucketName
+        MongoAdminPassword: !Ref MongoAdminPassword
+        MongoAppPassword: !Ref MongoAppPassword
+      TimeoutInMinutes: 15
+
+  EKSClusterStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${TemplateBucketName}.s3.amazonaws.com/eks-cluster.yaml
+      Parameters:
+        PrivateSubnet1Id: !GetAtt NetworkStack.Outputs.PrivateSubnet1Id
+        PrivateSubnet2Id: !GetAtt NetworkStack.Outputs.PrivateSubnet2Id
+        EKSNodeSecurityGroupId: !GetAtt NetworkStack.Outputs.EKSNodeSecurityGroupId
+      TimeoutInMinutes: 30
+
+  ECRStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${TemplateBucketName}.s3.amazonaws.com/ecr.yaml
+      TimeoutInMinutes: 10
+
+  SecurityStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${TemplateBucketName}.s3.amazonaws.com/security.yaml
+      Parameters:
+        TrailBucketName: !Ref TrailBucketName
+        ConfigBucketName: !Ref ConfigBucketName
+      TimeoutInMinutes: 15
+
+Outputs:
+  MongoVMPublicIp:
+    Value: !GetAtt MongoVMStack.Outputs.PublicIp
+  MongoVMPrivateIp:
+    Value: !GetAtt MongoVMStack.Outputs.PrivateIp
+  BackupBucketUrl:
+    Value: !GetAtt S3BackupStack.Outputs.BucketUrl
+  EKSClusterName:
+    Value: !GetAtt EKSClusterStack.Outputs.ClusterName
+  EKSOIDCIssuerUrl:
+    Value: !GetAtt EKSClusterStack.Outputs.OIDCIssuerUrl
+  CloudTrailArn:
+    Value: !GetAtt SecurityStack.Outputs.TrailArn
+  GuardDutyDetectorId:
+    Value: !GetAtt SecurityStack.Outputs.DetectorId
+  ECRRepositoryUri:
+    Value: !GetAtt ECRStack.Outputs.RepositoryUri
