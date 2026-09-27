@@ -4,11 +4,11 @@ on:
   push:
     branches: [main]
     paths:
-      - 'infra/**'
+      - 'Infra/**'
   pull_request:
     branches: [main]
     paths:
-      - 'infra/**'
+      - 'Infra/**'
 
 permissions:
   id-token: write   # required for OIDC -> AWS auth
@@ -30,17 +30,17 @@ jobs:
         run: pip install cfn-lint
 
       - name: Run cfn-lint
-        run: cfn-lint infra/*.yaml
+        run: cfn-lint Infra/*.yaml
 
       - name: Run cfn_nag (security scan)
         uses: stelligent/cfn_nag@master
         with:
-          input_path: infra
+          input_path: Infra
 
       - name: Run Checkov (IaC scan)
         uses: bridgecrewio/checkov-action@master
         with:
-          directory: infra
+          directory: Infra
           framework: cloudformation
 
   plan:
@@ -60,20 +60,20 @@ jobs:
 
       - name: Upload nested templates and scripts to S3
         run: |
-          aws s3 cp infra/network.yaml s3://${{ env.TEMPLATE_BUCKET }}/
-          aws s3 cp infra/mongo-vm.yaml s3://${{ env.TEMPLATE_BUCKET }}/
-          aws s3 cp infra/s3-backup.yaml s3://${{ env.TEMPLATE_BUCKET }}/
-          aws s3 cp infra/eks-cluster.yaml s3://${{ env.TEMPLATE_BUCKET }}/
-          aws s3 cp infra/ecr.yaml s3://${{ env.TEMPLATE_BUCKET }}/
-          aws s3 cp infra/security.yaml s3://${{ env.TEMPLATE_BUCKET }}/
-          aws s3 cp infra/scripts/mongo-setup.sh s3://${{ env.TEMPLATE_BUCKET }}/scripts/mongo-setup.sh
+          aws s3 cp Infra/network.yaml s3://${{ env.TEMPLATE_BUCKET }}/
+          aws s3 cp Infra/mongo-vm.yaml s3://${{ env.TEMPLATE_BUCKET }}/
+          aws s3 cp Infra/s3-backup.yaml s3://${{ env.TEMPLATE_BUCKET }}/
+          aws s3 cp Infra/eks-cluster.yaml s3://${{ env.TEMPLATE_BUCKET }}/
+          aws s3 cp Infra/ecr.yaml s3://${{ env.TEMPLATE_BUCKET }}/
+          aws s3 cp Infra/security.yaml s3://${{ env.TEMPLATE_BUCKET }}/
+          aws s3 cp Infra/scripts/mongo-setup.sh s3://${{ env.TEMPLATE_BUCKET }}/scripts/mongo-setup.sh
 
       - name: Create change set
         id: changeset
         run: |
           CHANGESET_NAME="cs-${{ github.sha }}"
           aws cloudformation deploy \
-            --template-file infra/root-stack.yaml \
+            --template-file Infra/root-stack.yaml \
             --stack-name security-exercise \
             --capabilities CAPABILITY_NAMED_IAM \
             --no-execute-changeset \
