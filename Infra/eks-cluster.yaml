@@ -29,6 +29,14 @@ Parameters:
   NodeGroupMaxSize:
     Type: Number
     Default: 3
+  DeployRoleArn:
+    Type: String
+    Description: >
+      ARN of the GitHub Actions OIDC deploy role (github-actions-cfn-deploy-role).
+      Granted an explicit EKS Access Entry with cluster-admin policy so the
+      app pipeline (kubectl apply/set image) has documented, guaranteed
+      access - rather than depending on implicit "cluster creator" admin
+      behavior, which is fragile to rely on and harder to explain/audit.
 
 Resources:
 
@@ -52,6 +60,8 @@ Resources:
       Name: !Ref ClusterName
       Version: !Ref KubernetesVersion
       RoleArn: !GetAtt EKSClusterRole.Arn
+      AccessConfig:
+        AuthenticationMode: API_AND_CONFIG_MAP   # required for AWS::EKS::AccessEntry to work
       ResourcesVpcConfig:
         SubnetIds:
           - !Ref PrivateSubnet1Id
@@ -102,6 +112,19 @@ Resources:
         - sts.amazonaws.com
       ThumbprintList:
         - 9e99a48a9960b14926bb7f3b02e22da2b0ab7280
+
+  # Explicit access for the CI/CD pipeline role - documented and auditable,
+  # rather than relying on implicit "cluster creator gets admin" behavior.
+  PipelineAccessEntry:
+    Type: AWS::EKS::AccessEntry
+    DependsOn: EKSCluster
+    Properties:
+      ClusterName: !Ref ClusterName
+      PrincipalArn: !Ref DeployRoleArn
+      AccessPolicies:
+        - PolicyArn: arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy
+          AccessScope:
+            Type: cluster
 
 Outputs:
   ClusterName:
