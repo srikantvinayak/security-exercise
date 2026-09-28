@@ -82,22 +82,30 @@ jobs:
             CHANGESET_TYPE="CREATE"
           fi
 
+          cat > params.json << PARAMS_EOF
+          [
+            {"ParameterKey": "TemplateBucketName", "ParameterValue": "${{ vars.TEMPLATE_BUCKET }}"},
+            {"ParameterKey": "KeyName", "ParameterValue": "${{ vars.KEY_NAME }}"},
+            {"ParameterKey": "MongoAmiId", "ParameterValue": "${{ vars.AMI_ID }}"},
+            {"ParameterKey": "BackupBucketName", "ParameterValue": "${{ vars.BACKUP_BUCKET }}"},
+            {"ParameterKey": "TrailBucketName", "ParameterValue": "${{ vars.TRAIL_BUCKET }}"},
+            {"ParameterKey": "ConfigBucketName", "ParameterValue": "${{ vars.CONFIG_BUCKET }}"},
+            {"ParameterKey": "MongoAdminPassword", "ParameterValue": "${{ secrets.MONGO_ADMIN_PASSWORD }}"},
+            {"ParameterKey": "MongoAppPassword", "ParameterValue": "${{ secrets.MONGO_APP_PASSWORD }}"},
+            {"ParameterKey": "DeployRoleArn", "ParameterValue": "${{ secrets.AWS_DEPLOY_ROLE_ARN }}"}
+          ]
+          PARAMS_EOF
+
+          echo "Parameter keys being sent (values withheld):"
+          python3 -c "import json; print([p['ParameterKey'] for p in json.load(open('params.json'))])"
+
           aws cloudformation create-change-set \
             --stack-name security-exercise \
             --change-set-name "$CHANGESET_NAME" \
             --change-set-type "$CHANGESET_TYPE" \
             --template-url "$TEMPLATE_URL" \
             --capabilities CAPABILITY_NAMED_IAM \
-            --parameters \
-              ParameterKey=TemplateBucketName,ParameterValue=${{ vars.TEMPLATE_BUCKET }} \
-              ParameterKey=KeyName,ParameterValue=${{ vars.KEY_NAME }} \
-              ParameterKey=MongoAmiId,ParameterValue=${{ vars.AMI_ID }} \
-              ParameterKey=BackupBucketName,ParameterValue=${{ vars.BACKUP_BUCKET }} \
-              ParameterKey=TrailBucketName,ParameterValue=${{ vars.TRAIL_BUCKET }} \
-              ParameterKey=ConfigBucketName,ParameterValue=${{ vars.CONFIG_BUCKET }} \
-              ParameterKey=MongoAdminPassword,ParameterValue=${{ secrets.MONGO_ADMIN_PASSWORD }} \
-              ParameterKey=MongoAppPassword,ParameterValue=${{ secrets.MONGO_APP_PASSWORD }} \
-              ParameterKey=DeployRoleArn,ParameterValue=${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+            --parameters file://params.json
 
           aws cloudformation wait change-set-create-complete \
             --stack-name security-exercise \
