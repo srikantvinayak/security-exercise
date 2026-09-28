@@ -3,6 +3,12 @@ Description: >
   Phase 4 - EKS cluster and managed node group deployed in private subnets only.
   Note: the cluster-admin ClusterRoleBinding for the app's ServiceAccount (Phase 4.7)
   is a Kubernetes-native object and is applied via kubectl, not this template.
+  kubectl access for the CI/CD pipeline is NOT granted via an explicit AccessEntry
+  here - EKS automatically grants cluster-admin to whichever IAM principal calls
+  CreateCluster, and since CloudFormation creates this cluster while authenticated
+  as the pipeline's OIDC role, that role already has access with no extra resource
+  needed. Adding an explicit AccessEntry for that same principal fails at deploy
+  time with "the specified access entry resource is already in use on this cluster."
 
 Parameters:
   PrivateSubnet1Id:
@@ -16,7 +22,7 @@ Parameters:
     Default: security-exercise-cluster
   KubernetesVersion:
     Type: String
-    Default: '1.36'
+    Default: '1.29'
   NodeInstanceType:
     Type: String
     Default: t3.medium
@@ -29,14 +35,6 @@ Parameters:
   NodeGroupMaxSize:
     Type: Number
     Default: 3
-  DeployRoleArn:
-    Type: String
-    Description: >
-      ARN of the GitHub Actions OIDC deploy role (github-actions-cfn-deploy-role).
-      Granted an explicit EKS Access Entry with cluster-admin policy so the
-      app pipeline (kubectl apply/set image) has documented, guaranteed
-      access - rather than depending on implicit "cluster creator" admin
-      behavior, which is fragile to rely on and harder to explain/audit.
 
 Resources:
 
@@ -112,19 +110,6 @@ Resources:
         - sts.amazonaws.com
       ThumbprintList:
         - 9e99a48a9960b14926bb7f3b02e22da2b0ab7280
-
-  # Explicit access for the CI/CD pipeline role - documented and auditable,
-  # rather than relying on implicit "cluster creator gets admin" behavior.
-  PipelineAccessEntry:
-    Type: AWS::EKS::AccessEntry
-    DependsOn: EKSCluster
-    Properties:
-      ClusterName: !Ref ClusterName
-      PrincipalArn: !Ref DeployRoleArn
-      AccessPolicies:
-        - PolicyArn: arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy
-          AccessScope:
-            Type: cluster
 
 Outputs:
   ClusterName:
