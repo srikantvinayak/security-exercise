@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - 'app/**'
-      - 'K8 YAMLS/**'
+      - 'k8s/**'
   workflow_dispatch:
 
 permissions:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: ${{ vars.REGION }}
   STACK_NAME: security-exercise   # the infra stack, to read ECR/cluster outputs from
   ECR_REPO_NAME: todo-app
 
@@ -101,6 +101,14 @@ jobs:
 
       - name: Wait for rollout to complete
         run: kubectl rollout status deployment/todo-app -n default --timeout=180s
+
+      - name: Roll back on failure
+        if: failure()
+        run: |
+          echo "Rollout failed or timed out - reverting to previous working revision"
+          kubectl rollout undo deployment/todo-app -n default
+          kubectl rollout status deployment/todo-app -n default --timeout=120s
+          exit 1   # still fail the job so it's visibly red in the Actions UI, even though we recovered
 
       - name: Show running pods and image
         run: |
