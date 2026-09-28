@@ -9,7 +9,7 @@ on:
     branches: [main]
     paths:
       - 'Infra/**'
-  workflow_dispatch: 
+  workflow_dispatch:   # adds a manual "Run workflow" button in the Actions tab
 
 permissions:
   id-token: write   # required for OIDC -> AWS auth
@@ -17,7 +17,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  TEMPLATE_BUCKET: mycfn-templates2026
+  TEMPLATE_BUCKET: <your-template-hosting-bucket>
 
 jobs:
 
@@ -43,7 +43,7 @@ jobs:
         with:
           directory: Infra
           framework: cloudformation
-          soft_fail: true
+          soft_fail: true   # report findings, don't block the pipeline on them
 
   plan:
     name: Create change set (plan)
@@ -88,7 +88,8 @@ jobs:
               TrailBucketName=${{ secrets.TRAIL_BUCKET_NAME }} \
               ConfigBucketName=${{ secrets.CONFIG_BUCKET_NAME }} \
               MongoAdminPassword=${{ secrets.MONGO_ADMIN_PASSWORD }} \
-              MongoAppPassword=${{ secrets.MONGO_APP_PASSWORD }}
+              MongoAppPassword=${{ secrets.MONGO_APP_PASSWORD }} \
+              DeployRoleArn=${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           echo "name=$CHANGESET_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Show change set (human-readable diff)
