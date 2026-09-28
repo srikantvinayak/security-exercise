@@ -7,10 +7,10 @@ Description: >
 Parameters:
   GitHubOrg:
     Type: String
-    Description: srikantvinayak
+    Description: "srikantvinayak"
   GitHubRepo:
     Type: String
-    Description: Repository name, e.g. "security-exercise"
+    Description: "security-exercise"
 
 Resources:
 
