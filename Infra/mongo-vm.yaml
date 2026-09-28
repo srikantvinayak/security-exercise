@@ -1,7 +1,13 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  Phase 2 - MongoDB VM: outdated Linux AMI, outdated MongoDB version,
-  overly permissive IAM role (intentional), daily backup cron to S3.
+  Phase 2 - MongoDB VM on Amazon Linux 2023 (x86_64): MongoDB 7.0 (outdated -
+  4.4/6.0 have NO amazon/2023 repo published at all, so 7.0 is the oldest
+  version that actually installs here; still ~1+ years outdated against
+  current MongoDB releases), overly permissive IAM role (intentional), daily
+  backup cron to S3. The actual install/config logic lives in a standalone
+  scripts/mongo-setup.sh file hosted in S3 - UserData here just fetches and
+  runs it, keeping this template short and letting the script be edited/tested
+  independently of a CloudFormation deploy.
 
 Parameters:
   PublicSubnetId:
@@ -9,19 +15,28 @@ Parameters:
   MongoSecurityGroupId:
     Type: AWS::EC2::SecurityGroup::Id
   KeyName:
-    Type: AWS::EC2::KeyPair::KeyName 
+    Type: AWS::EC2::KeyPair::KeyName
     Description: Existing EC2 key pair for SSH access
   AmiId:
     Type: AWS::EC2::Image::Id
     Description: >
-      Must be a 1+ year outdated AMI ID (verify CreationDate via
-      `aws ec2 describe-images` before passing this in - see runbook Phase 2.1)
+      Amazon Linux 2023 x86_64 AMI (e.g. al2023-ami-2023.8.20250908-kernel-6.1-x86_64).
+      Standard x86_64 - any standard InstanceType family (t3, m5, etc) works.
   InstanceType:
     Type: String
     Default: t3.micro
   BackupBucketName:
     Type: String
     Description: Name of the S3 bucket created by s3-backup.yaml
+  ScriptsBucketName:
+    Type: String
+    Description: >
+      S3 bucket hosting scripts/mongo-setup.sh (can be the same bucket used
+      to host the CloudFormation templates - just a different key prefix)
+  ScriptsKey:
+    Type: String
+    Default: scripts/mongo-setup.sh
+    Description: Key (path) of the setup script inside ScriptsBucketName
   MongoAdminPassword:
     Type: String
     NoEcho: true
@@ -57,6 +72,14 @@ Resources:
                   - s3:PutObject
                   - s3:PutObjectAcl
                 Resource: !Sub arn:aws:s3:::${BackupBucketName}/*
+        - PolicyName: scripts-bucket-read
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub arn:aws:s3:::${ScriptsBucketName}/${ScriptsKey}
 
   MongoVMInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -81,47 +104,15 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash
           set -e
+          exec > /var/log/user-data.log 2>&1   # capture everything for troubleshooting
 
-          # Pin an outdated MongoDB version (Phase 2.5) - example uses 4.4 series
-          cat <<EOF > /etc/apt/sources.list.d/mongodb-org-4.4.list
-          deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse
-          EOF
-          wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | apt-key add -
-          apt-get update -y
-          apt-get install -y mongodb-org=4.4.29 mongodb-org-server=4.4.29 mongodb-org-shell=4.4.29 \
-            mongodb-org-mongos=4.4.29 mongodb-org-tools=4.4.29 awscli
-
-          PRIVATE_IP=$(hostname -I | awk '{print $1}')
-
-          # Bind to private IP only, not 0.0.0.0 (Phase 2.7)
-          sed -i "s/bindIp: 127.0.0.1/bindIp: 127.0.0.1,${!PRIVATE_IP}/" /etc/mongod.conf
-          systemctl restart mongod
-          sleep 5
-
-          # Create admin + app user, then enable auth (Phase 2.6)
-          mongo <<EOF
-          use admin
-          db.createUser({user:"admin", pwd:"${MongoAdminPassword}", roles:[{role:"root", db:"admin"}]})
-          use tododb
-          db.createUser({user:"appuser", pwd:"${MongoAppPassword}", roles:[{role:"readWrite", db:"tododb"}]})
-          EOF
-
-          echo "security:
-            authorization: enabled" >> /etc/mongod.conf
-          systemctl restart mongod
-
-          # Daily backup script (Phase 2.8)
-          cat <<'BACKUP' > /usr/local/bin/mongo-backup.sh
-          #!/bin/bash
-          DATE=$(date +%F)
-          mongodump -u admin -p "${MongoAdminPassword}" --authenticationDatabase admin --out /tmp/backup-$DATE
-          aws s3 cp /tmp/backup-$DATE s3://${BackupBucketName}/backup-$DATE --recursive
-          rm -rf /tmp/backup-$DATE
-          BACKUP
-          chmod +x /usr/local/bin/mongo-backup.sh
-
-          # Daily cron at 02:00
-          echo "0 2 * * * root /usr/local/bin/mongo-backup.sh >> /var/log/mongo-backup.log 2>&1" > /etc/cron.d/mongo-backup
+          # Fetch the real setup script from S3, then execute it with the
+          # secrets/bucket name as arguments - keeps this template's UserData
+          # to just "download and run", with all install/config logic living
+          # in the standalone, independently-testable mongo-setup.sh file.
+          aws s3 cp "s3://${ScriptsBucketName}/${ScriptsKey}" /tmp/mongo-setup.sh
+          chmod +x /tmp/mongo-setup.sh
+          /tmp/mongo-setup.sh "${BackupBucketName}" "${MongoAdminPassword}" "${MongoAppPassword}"
 
 Outputs:
   InstanceId:
