@@ -60,15 +60,20 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Normalize TEMPLATE_BUCKET (strip any stray whitespace from the variable)
+        run: |
+          CLEAN=$(echo "${{ env.TEMPLATE_BUCKET }}" | xargs)
+          echo "TEMPLATE_BUCKET=$CLEAN" >> "$GITHUB_ENV"
+
       - name: Upload nested templates and scripts to S3
         run: |
-          aws s3 cp Infra/network.yaml s3://${{ env.TEMPLATE_BUCKET }}/
-          aws s3 cp Infra/mongo-vm.yaml s3://${{ env.TEMPLATE_BUCKET }}/
-          aws s3 cp Infra/s3-backup.yaml s3://${{ env.TEMPLATE_BUCKET }}/
-          aws s3 cp Infra/eks-cluster.yaml s3://${{ env.TEMPLATE_BUCKET }}/
-          aws s3 cp Infra/ecr.yaml s3://${{ env.TEMPLATE_BUCKET }}/
-          aws s3 cp Infra/security.yaml s3://${{ env.TEMPLATE_BUCKET }}/
-          aws s3 cp Infra/scripts/script-mongo-db.sh s3://${{ env.TEMPLATE_BUCKET }}/scripts/mongo-setup.sh
+          aws s3 cp Infra/network.yaml "s3://${{ env.TEMPLATE_BUCKET }}/"
+          aws s3 cp Infra/mongo-vm.yaml "s3://${{ env.TEMPLATE_BUCKET }}/"
+          aws s3 cp Infra/s3-backup.yaml "s3://${{ env.TEMPLATE_BUCKET }}/"
+          aws s3 cp Infra/eks-cluster.yaml "s3://${{ env.TEMPLATE_BUCKET }}/"
+          aws s3 cp Infra/ecr.yaml "s3://${{ env.TEMPLATE_BUCKET }}/"
+          aws s3 cp Infra/security.yaml "s3://${{ env.TEMPLATE_BUCKET }}/"
+          aws s3 cp Infra/scripts/script-mongo-db.sh "s3://${{ env.TEMPLATE_BUCKET }}/scripts/mongo-setup.sh"
 
       - name: Create change set
         id: changeset
