@@ -17,7 +17,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  TEMPLATE_BUCKET: security-exercise-template
+  TEMPLATE_BUCKET: security-exercise-templates
 
 jobs:
 
@@ -74,22 +74,35 @@ jobs:
         id: changeset
         run: |
           CHANGESET_NAME="cs-${{ github.sha }}"
-          aws cloudformation deploy \
-            --template-file Infra/root-stack.yaml \
+          TEMPLATE_URL="https://${{ env.TEMPLATE_BUCKET }}.s3.amazonaws.com/root-stack.yaml"
+
+          if aws cloudformation describe-stacks --stack-name security-exercise >/dev/null 2>&1; then
+            CHANGESET_TYPE="UPDATE"
+          else
+            CHANGESET_TYPE="CREATE"
+          fi
+
+          aws cloudformation create-change-set \
             --stack-name security-exercise \
-            --capabilities CAPABILITY_NAMED_IAM \
-            --no-execute-changeset \
             --change-set-name "$CHANGESET_NAME" \
-            --parameter-overrides \
-              TemplateBucketName=${{ env.TEMPLATE_BUCKET }} \
-              KeyName=${{ secrets.EC2_KEY_NAME }} \
-              MongoAmiId=${{ secrets.MONGO_AMI_ID }} \
-              BackupBucketName=${{ secrets.BACKUP_BUCKET_NAME }} \
-              TrailBucketName=${{ secrets.TRAIL_BUCKET_NAME }} \
-              ConfigBucketName=${{ secrets.CONFIG_BUCKET_NAME }} \
-              MongoAdminPassword=${{ secrets.MONGO_ADMIN_PASSWORD }} \
-              MongoAppPassword=${{ secrets.MONGO_APP_PASSWORD }} \
-              DeployRoleArn=${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+            --change-set-type "$CHANGESET_TYPE" \
+            --template-url "$TEMPLATE_URL" \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameters \
+              ParameterKey=TemplateBucketName,ParameterValue=${{ env.TEMPLATE_BUCKET }} \
+              ParameterKey=KeyName,ParameterValue=${{ secrets.EC2_KEY_NAME }} \
+              ParameterKey=MongoAmiId,ParameterValue=${{ secrets.MONGO_AMI_ID }} \
+              ParameterKey=BackupBucketName,ParameterValue=${{ secrets.BACKUP_BUCKET_NAME }} \
+              ParameterKey=TrailBucketName,ParameterValue=${{ secrets.TRAIL_BUCKET_NAME }} \
+              ParameterKey=ConfigBucketName,ParameterValue=${{ secrets.CONFIG_BUCKET_NAME }} \
+              ParameterKey=MongoAdminPassword,ParameterValue=${{ secrets.MONGO_ADMIN_PASSWORD }} \
+              ParameterKey=MongoAppPassword,ParameterValue=${{ secrets.MONGO_APP_PASSWORD }} \
+              ParameterKey=DeployRoleArn,ParameterValue=${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+
+          aws cloudformation wait change-set-create-complete \
+            --stack-name security-exercise \
+            --change-set-name "$CHANGESET_NAME"
+
           echo "name=$CHANGESET_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Show change set (human-readable diff)
