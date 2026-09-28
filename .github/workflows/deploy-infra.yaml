@@ -68,7 +68,7 @@ jobs:
           aws s3 cp Infra/eks-cluster.yaml s3://${{ env.TEMPLATE_BUCKET }}/
           aws s3 cp Infra/ecr.yaml s3://${{ env.TEMPLATE_BUCKET }}/
           aws s3 cp Infra/security.yaml s3://${{ env.TEMPLATE_BUCKET }}/
-          aws s3 cp Infra/scripts/mongo-setup.sh s3://${{ env.TEMPLATE_BUCKET }}/scripts/mongo-setup.sh
+          aws s3 cp Infra/scripts/script-mongo-db.sh s3://${{ env.TEMPLATE_BUCKET }}/scripts/mongo-setup.sh
 
       - name: Create change set
         id: changeset
