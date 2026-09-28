@@ -26,11 +26,6 @@ Parameters:
   MongoAppPassword:
     Type: String
     NoEcho: true
-  DeployRoleArn:
-    Type: String
-    Description: >
-      ARN of the GitHub Actions OIDC deploy role - granted an explicit EKS
-      Access Entry so the app pipeline can run kubectl against the cluster.
 
 Resources:
 
@@ -71,7 +66,6 @@ Resources:
         PrivateSubnet1Id: !GetAtt NetworkStack.Outputs.PrivateSubnet1Id
         PrivateSubnet2Id: !GetAtt NetworkStack.Outputs.PrivateSubnet2Id
         EKSNodeSecurityGroupId: !GetAtt NetworkStack.Outputs.EKSNodeSecurityGroupId
-        DeployRoleArn: !Ref DeployRoleArn
       TimeoutInMinutes: 30
 
   ECRStack:
