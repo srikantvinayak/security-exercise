@@ -7,7 +7,7 @@ Description: >
 Parameters:
   GitHubOrg:
     Type: String
-    Description: vinayaksrikant-orca
+    Description: srikantvinayak
   GitHubRepo:
     Type: String
     Description: Repository name, e.g. "security-exercise"
