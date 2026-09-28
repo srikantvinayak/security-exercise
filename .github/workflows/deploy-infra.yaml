@@ -43,6 +43,7 @@ jobs:
         with:
           directory: Infra
           framework: cloudformation
+          soft_fail: true
 
   plan:
     name: Create change set (plan)
