@@ -16,7 +16,7 @@ Parameters:
     Default: security-exercise-cluster
   KubernetesVersion:
     Type: String
-    Default: '1.29'
+    Default: '1.36'
   NodeInstanceType:
     Type: String
     Default: t3.medium
