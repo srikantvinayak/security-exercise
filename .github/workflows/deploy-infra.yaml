@@ -17,7 +17,7 @@ permissions:
 
 env:
   AWS_REGION: ${{ vars.REGION }}
-  TEMPLATE_BUCKET: security-exercise-template
+  TEMPLATE_BUCKET: ${{ vars.TEMPLATE_BUCKET }}
 
 jobs:
 
@@ -96,8 +96,7 @@ jobs:
             {"ParameterKey": "TrailBucketName", "ParameterValue": "${{ vars.TRAIL_BUCKET }}"},
             {"ParameterKey": "ConfigBucketName", "ParameterValue": "${{ vars.CONFIG_BUCKET }}"},
             {"ParameterKey": "MongoAdminPassword", "ParameterValue": "${{ secrets.MONGO_ADMIN_PASSWORD }}"},
-            {"ParameterKey": "MongoAppPassword", "ParameterValue": "${{ secrets.MONGO_APP_PASSWORD }}"},
-            {"ParameterKey": "DeployRoleArn", "ParameterValue": "${{ secrets.AWS_DEPLOY_ROLE_ARN }}"}
+            {"ParameterKey": "MongoAppPassword", "ParameterValue": "${{ secrets.MONGO_APP_PASSWORD }}"}
           ]
           PARAMS_EOF
 
