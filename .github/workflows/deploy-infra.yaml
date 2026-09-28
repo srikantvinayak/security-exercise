@@ -67,6 +67,7 @@ jobs:
 
       - name: Upload nested templates and scripts to S3
         run: |
+          aws s3 cp Infra/root-stack.yaml "s3://${{ env.TEMPLATE_BUCKET }}/"
           aws s3 cp Infra/network.yaml "s3://${{ env.TEMPLATE_BUCKET }}/"
           aws s3 cp Infra/mongo-vm.yaml "s3://${{ env.TEMPLATE_BUCKET }}/"
           aws s3 cp Infra/s3-backup.yaml "s3://${{ env.TEMPLATE_BUCKET }}/"
