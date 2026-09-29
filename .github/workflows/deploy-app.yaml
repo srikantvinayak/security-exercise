@@ -64,11 +64,16 @@ jobs:
           exit-code: '0'   # report findings, don't block the pipeline (same pattern as Checkov's soft_fail)
 
       - name: Tag and push to ECR
+        # Only the unique git-SHA tag is pushed - the repo is ImageTagMutability:
+        # IMMUTABLE (Infra/ecr.yaml), so a floating :latest tag would fail on
+        # every run after the first. Every build gets its own traceable tag,
+        # which is the stronger practice for this anyway - it means the exact
+        # image running in the cluster can always be tied back to one commit,
+        # with no ambiguous tag that could silently point somewhere different
+        # between one deploy and the next.
         run: |
           docker tag ${{ env.ECR_REPO_NAME }}:${{ github.sha }} ${{ steps.vars.outputs.image_uri }}
-          docker tag ${{ env.ECR_REPO_NAME }}:${{ github.sha }} ${ECR_URI}:latest
           docker push ${{ steps.vars.outputs.image_uri }}
-          docker push ${ECR_URI}:latest
 
   deploy:
     name: Deploy image to EKS (requires manual approval)
