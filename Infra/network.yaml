@@ -1,5 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: VPC + SG creation
+Description: >
+  Phase 1 - Networking foundation: VPC, public/private subnets across 2 AZs,
+  IGW, NAT Gateway, route tables, and security groups for the security exercise.
 
 Parameters:
   VpcCidr:
@@ -53,6 +55,14 @@ Resources:
       Tags:
         - Key: Name
           Value: public-subnet-1
+        # Required for the AWS Load Balancer Controller to auto-discover this
+        # subnet as a valid place to put an internet-facing ALB. Without these
+        # two tags, Ingress objects never get an ADDRESS - the controller has
+        # no way to know which subnets it's allowed to use.
+        - Key: kubernetes.io/role/elb
+          Value: '1'
+        - Key: kubernetes.io/cluster/security-exercise-cluster
+          Value: shared
 
   PublicSubnet2:
     Type: AWS::EC2::Subnet
@@ -62,6 +72,10 @@ Resources:
       AvailabilityZone: !Select [1, !GetAZs '']
       MapPublicIpOnLaunch: true
       Tags:
+        - Key: kubernetes.io/role/elb
+          Value: '1'
+        - Key: kubernetes.io/cluster/security-exercise-cluster
+          Value: shared
         - Key: Name
           Value: public-subnet-2
 
@@ -157,7 +171,7 @@ Resources:
       SubnetId: !Ref PrivateSubnet2
       RouteTableId: !Ref PrivateRouteTable
 
- 
+  # Intentional misconfig: SSH open to the world (Phase 2.3)
   MongoVMSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -168,7 +182,7 @@ Resources:
           FromPort: 22
           ToPort: 22
           CidrIp: 0.0.0.0/0
-          Description: "SSH open to internet"
+          Description: "INTENTIONAL MISCONFIG - SSH open to internet"
         - IpProtocol: tcp
           FromPort: 27017
           ToPort: 27017
