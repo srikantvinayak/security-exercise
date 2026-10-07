@@ -1,8 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  Phase 7 - Cloud native security: CloudTrail audit logging (required),
-  GuardDuty + AWS Config as detective controls, Config recorder feeding
-  managed rules that flag the intentional misconfigurations built earlier.
+  Cloudtrail + GuardDuty + Config Rule
 
 Parameters:
   TrailBucketName:
@@ -14,7 +12,7 @@ Parameters:
 
 Resources:
 
-  # --- CloudTrail (7.1) ---
+
   CloudTrailBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -59,14 +57,14 @@ Resources:
       IsLogging: true
       EnableLogFileValidation: true
 
-  # --- GuardDuty (7.3, detective) ---
+  
   GuardDutyDetector:
     Type: AWS::GuardDuty::Detector
     Properties:
       Enable: true
       FindingPublishingFrequency: FIFTEEN_MINUTES
 
-  # --- AWS Config (7.3, detective) ---
+
   ConfigBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -141,7 +139,7 @@ Resources:
       Name: security-exercise-delivery-channel
       S3BucketName: !Ref ConfigBucket
 
-  # Should flag the intentionally-open SSH security group from network.yaml
+ 
   RestrictedSSHRule:
     Type: AWS::Config::ConfigRule
     DependsOn: ConfigRecorder
@@ -154,7 +152,7 @@ Resources:
         ComplianceResourceTypes:
           - AWS::EC2::SecurityGroup
 
-  # Should flag the intentionally-public backup bucket from s3-backup.yaml
+
   S3PublicReadProhibitedRule:
     Type: AWS::Config::ConfigRule
     DependsOn: ConfigRecorder
