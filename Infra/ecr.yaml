@@ -1,7 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  Phase 4 - ECR repository for the todo app image, with scan-on-push
-  enabled (basic AWS-native image scanning, in addition to Trivy in the pipeline).
+  ECR repo for todo
 
 Parameters:
   RepositoryName:
