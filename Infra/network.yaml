@@ -1,7 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  Phase 1 - Networking foundation: VPC, public/private subnets across 2 AZs,
-  IGW, NAT Gateway, route tables, and security groups for the security exercise.
+  VPC + SG
 
 Parameters:
   VpcCidr:
@@ -55,10 +54,6 @@ Resources:
       Tags:
         - Key: Name
           Value: public-subnet-1
-        # Required for the AWS Load Balancer Controller to auto-discover this
-        # subnet as a valid place to put an internet-facing ALB. Without these
-        # two tags, Ingress objects never get an ADDRESS - the controller has
-        # no way to know which subnets it's allowed to use.
         - Key: kubernetes.io/role/elb
           Value: '1'
         - Key: kubernetes.io/cluster/security-exercise-cluster
@@ -171,7 +166,6 @@ Resources:
       SubnetId: !Ref PrivateSubnet2
       RouteTableId: !Ref PrivateRouteTable
 
-  # Intentional misconfig: SSH open to the world (Phase 2.3)
   MongoVMSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
