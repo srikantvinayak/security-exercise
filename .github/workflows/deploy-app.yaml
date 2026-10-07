@@ -9,12 +9,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write   # required for OIDC -> AWS auth
+  id-token: write   
   contents: read
 
 env:
   AWS_REGION: ${{ vars.REGION }}
-  STACK_NAME: security-exercise   # the infra stack, to read ECR/cluster outputs from
+  STACK_NAME: security-exercise   
   ECR_REPO_NAME: todo-app
 
 jobs:
@@ -79,7 +79,7 @@ jobs:
     name: Deploy image to EKS (requires manual approval)
     needs: build-scan-push
     runs-on: ubuntu-latest
-    environment: production   # same approval gate as the infra pipeline
+    environment: production   
     steps:
       - uses: actions/checkout@v4
 
