@@ -1,20 +1,12 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  One-time setup - GitHub OIDC provider + IAM role that GitHub Actions
-  assumes to deploy this exercise's CloudFormation stacks. Deploy this
-  manually, once, before the pipeline can run (it deploys everything else).
+  OIDC Setup
 
 Parameters:
   GitHubSubClaimPrefix:
     Type: String
     Description: >
-      The exact subject-claim prefix from Settings -> Actions -> OIDC on the
-      GitHub repo itself (e.g. "repo:srikantvinayak@148214950/security-exercise@1390777247").
-      GitHub's "immutable subject claims" (mandatory for repos created after
-      2026-07-15) embed numeric owner/repo IDs that only GitHub assigns - they
-      can't be derived from the org/repo name alone, so this must be copy-pasted
-      from that settings page (or fetched via GET /repos/{owner}/{repo}/actions/oidc/customization/sub)
-      rather than constructed from GitHubOrg/GitHubRepo strings.
+      Subject-claim
 
 Resources:
 
@@ -43,8 +35,7 @@ Resources:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
               StringLike:
                 token.actions.githubusercontent.com:sub: !Sub ${GitHubSubClaimPrefix}:*
-      # Scoped for this exercise; in a real environment narrow this further
-      # (e.g. deny iam:CreateUser, restrict to specific resource ARNs/prefixes).
+
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/PowerUserAccess
       Policies:
