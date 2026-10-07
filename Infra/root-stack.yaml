@@ -1,15 +1,14 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
   Root stack - deploys network, mongo-vm, s3-backup, eks-cluster, and security
-  as nested stacks, wiring outputs from one into parameters of the next.
-  All child templates must first be uploaded to TemplateBucketName (see below).
+  as nested stacks
 
 Parameters:
   TemplateBucketName:
     Type: String
     Description: >
       S3 bucket that hosts network.yaml, mongo-vm.yaml, s3-backup.yaml,
-      eks-cluster.yaml, and security.yaml (upload these before deploying this stack)
+      eks-cluster.yaml, and security.yaml
   KeyName:
     Type: AWS::EC2::KeyPair::KeyName
   MongoAmiId:
