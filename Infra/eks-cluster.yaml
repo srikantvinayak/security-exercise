@@ -1,14 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  Phase 4 - EKS cluster and managed node group deployed in private subnets only.
-  Note: the cluster-admin ClusterRoleBinding for the app's ServiceAccount (Phase 4.7)
-  is a Kubernetes-native object and is applied via kubectl, not this template.
-  kubectl access for the CI/CD pipeline is NOT granted via an explicit AccessEntry
-  here - EKS automatically grants cluster-admin to whichever IAM principal calls
-  CreateCluster, and since CloudFormation creates this cluster while authenticated
-  as the pipeline's OIDC role, that role already has access with no extra resource
-  needed. Adding an explicit AccessEntry for that same principal fails at deploy
-  time with "the specified access entry resource is already in use on this cluster."
+  EKS cluster deployment
 
 Parameters:
   PrivateSubnet1Id:
