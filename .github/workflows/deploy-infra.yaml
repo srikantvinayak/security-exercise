@@ -9,10 +9,10 @@ on:
     branches: [main]
     paths:
       - 'Infra/**'
-  workflow_dispatch:   # adds a manual "Run workflow" button in the Actions tab
+  workflow_dispatch:   
 
 permissions:
-  id-token: write   # required for OIDC -> AWS auth
+  id-token: write   
   contents: read
 
 env:
@@ -43,7 +43,7 @@ jobs:
         with:
           directory: Infra
           framework: cloudformation
-          soft_fail: true   # report findings, don't block the pipeline on them
+          soft_fail: true   
 
   plan:
     name: Create change set (plan)
@@ -130,7 +130,7 @@ jobs:
     name: Execute change set (requires manual approval)
     needs: plan
     runs-on: ubuntu-latest
-    environment: production   # <- pauses here for the required reviewer
+    environment: production   
     steps:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
