@@ -51,7 +51,7 @@ Resources:
       Version: !Ref KubernetesVersion
       RoleArn: !GetAtt EKSClusterRole.Arn
       AccessConfig:
-        AuthenticationMode: API_AND_CONFIG_MAP   # required for AWS::EKS::AccessEntry to work
+        AuthenticationMode: API_AND_CONFIG_MAP
       ResourcesVpcConfig:
         SubnetIds:
           - !Ref PrivateSubnet1Id
