@@ -5,10 +5,10 @@ Description: >
 Parameters:
   TrailBucketName:
     Type: String
-    Description: Globally unique bucket name for CloudTrail logs (separate from the backup bucket)
+    Description: CtailBucket
   ConfigBucketName:
     Type: String
-    Description: Globally unique bucket name for AWS Config snapshots
+    Description: Config Bucket
 
 Resources:
 
