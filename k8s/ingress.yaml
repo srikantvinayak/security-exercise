@@ -8,8 +8,8 @@ spec:
     app: todo-app
   ports:
     - port: 80
-      targetPort: 8080   # tasky listens on :8080 (main.go: router.Run(":8080"))
-  type: ClusterIP   # the ALB Ingress below routes to this internally; no public NodePort/LB needed here
+      targetPort: 8080 
+  type: ClusterIP   
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -18,7 +18,7 @@ metadata:
   namespace: default
   annotations:
     kubernetes.io/ingress.class: alb
-    alb.ingress.kubernetes.io/scheme: internet-facing   # public ALB
+    alb.ingress.kubernetes.io/scheme: internet-facing  
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
 spec:
