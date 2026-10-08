@@ -93,7 +93,7 @@ Resources:
         DesiredSize: !Ref NodeGroupDesiredSize
         MaxSize: !Ref NodeGroupMaxSize
 
-  # OIDC provider - required for IRSA (e.g. AWS Load Balancer Controller in Phase 4.8)
+  
   EKSOIDCProvider:
     Type: AWS::IAM::OIDCProvider
     Properties:
