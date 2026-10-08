@@ -13,8 +13,7 @@ Parameters:
   AmiId:
     Type: AWS::EC2::Image::Id
     Description: >
-      Amazon Linux 2023 x86_64 AMI (e.g. al2023-ami-2023.8.20250908-kernel-6.1-x86_64).
-      Standard x86_64 - any standard InstanceType family (t3, m5, etc) works.
+      Amazon Linux 2023 
   InstanceType:
     Type: String
     Default: t3.micro
@@ -24,8 +23,7 @@ Parameters:
   ScriptsBucketName:
     Type: String
     Description: >
-      S3 bucket hosting scripts/mongo-setup.sh (can be the same bucket used
-      to host the CloudFormation templates - just a different key prefix)
+      S3 bucket hosting scripts/mongo-setup.sh 
   ScriptsKey:
     Type: String
     Default: scripts/mongo-setup.sh
@@ -33,15 +31,15 @@ Parameters:
   MongoAdminPassword:
     Type: String
     NoEcho: true
-    Description: Password for the MongoDB admin user (never commit a real value - pass at deploy time)
+    Description: Password for the MongoDB admin user
   MongoAppPassword:
     Type: String
     NoEcho: true
-    Description: Password for the MongoDB app user (never commit a real value - pass at deploy time)
+    Description: Password for the MongoDB app user
 
 Resources:
 
-  # INTENTIONAL MISCONFIG: overly permissive role (Phase 2.4)
+  
   MongoVMRole:
     Type: AWS::IAM::Role
     Properties:
@@ -97,12 +95,7 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash
           set -e
-          exec > /var/log/user-data.log 2>&1   # capture everything for troubleshooting
-
-          # Fetch the real setup script from S3, then execute it with the
-          # secrets/bucket name as arguments - keeps this template's UserData
-          # to just "download and run", with all install/config logic living
-          # in the standalone, independently-testable mongo-setup.sh file.
+          exec > /var/log/user-data.log 2>&1   
           aws s3 cp "s3://${ScriptsBucketName}/${ScriptsKey}" /tmp/mongo-setup.sh
           chmod +x /tmp/mongo-setup.sh
           /tmp/mongo-setup.sh "${BackupBucketName}" "${MongoAdminPassword}" "${MongoAppPassword}"
