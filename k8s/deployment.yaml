@@ -15,15 +15,15 @@ spec:
       labels:
         app: todo-app
     spec:
-      serviceAccountName: todo-app-sa   # binds to the cluster-admin ClusterRoleBinding above
+      serviceAccountName: todo-app-sa
       containers:
         - name: todo-app
           image: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/todo-app:latest
           ports:
-            - containerPort: 8080   # tasky's Gin router listens on :8080, per main.go
+            - containerPort: 8080
           envFrom:
             - secretRef:
-                name: mongo-creds        # injects MONGODB_URI and SECRET_KEY as env vars
+                name: mongo-creds       
           resources:
             requests:
               cpu: 100m
