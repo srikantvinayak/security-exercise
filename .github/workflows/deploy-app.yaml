@@ -86,7 +86,7 @@ jobs:
         run: |
           aws eks update-kubeconfig --name ${{ needs.build-scan-push.outputs.cluster-name }} --region ${{ env.AWS_REGION }}
 
-      - name: Apply/refresh k8s manifests (Secret must already exist - see runbook Part H5)
+      - name: Apply/refresh k8s manifests
         run: |
           kubectl apply -f k8s/serviceaccount-clusterrolebinding.yaml
           kubectl apply -f k8s/deployment.yaml
@@ -107,7 +107,7 @@ jobs:
           echo "Rollout failed or timed out - reverting to previous working revision"
           kubectl rollout undo deployment/todo-app -n default
           kubectl rollout status deployment/todo-app -n default --timeout=120s
-          exit 1   # still fail the job so it's visibly red in the Actions UI, even though we recovered
+          exit 1  
 
       - name: Show running pods and image
         run: |
